@@ -1,5 +1,5 @@
 // src/pages/index.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   FaTachometerAlt,
   FaUsers,
@@ -9,32 +9,42 @@ import {
   FaFileInvoiceDollar,
   FaSignOutAlt,
 } from "react-icons/fa";
-import { getSession, signOut } from "next-auth/react";
+import { GetServerSideProps } from "next";
+import { supabase } from "../lib/supabaseClient";
 
-const payslips = [
-  {
-    period: "December 2025",
-    name: "Sgt. John Doe",
-    rank: "Sergeant",
-    employeeId: "PNGD-00123",
-    department: "Infantry",
-    basic: 10000,
-    allowances: 2500,
-    deductions: 1200,
-  },
-  {
-    period: "November 2025",
-    name: "Sgt. John Doe",
-    rank: "Sergeant",
-    employeeId: "PNGD-00123",
-    department: "Infantry",
-    basic: 10000,
-    allowances: 2500,
-    deductions: 1000,
-  },
-];
+type Payslip = {
+  id: string;
+  period: string;
+  basic: number;
+  allowances: number;
+  deductions: number;
+};
 
-export default function Dashboard({ session }: { session: any }) {
+export default function Dashboard({ user }: { user: any }) {
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
+
+  // -------------------- LOAD USER DATA --------------------
+  useEffect(() => {
+    const fetchPayslips = async () => {
+      const { data, error } = await supabase
+        .from("payslips")
+        .select("*")
+        .order("period", { ascending: false });
+
+      if (!error && data) {
+        setPayslips(data);
+      }
+    };
+
+    fetchPayslips();
+  }, []);
+
+  // -------------------- LOGOUT --------------------
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/auth/signin";
+  };
+
   return (
     <div className="flex min-h-screen bg-zinc-100">
       {/* Sidebar */}
@@ -43,111 +53,98 @@ export default function Dashboard({ session }: { session: any }) {
           PNG DoD
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <a
-            href="#"
-            className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800 transition-colors"
-          >
+          <a className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800">
             <FaTachometerAlt /> Dashboard
           </a>
-          <a
-            href="#"
-            className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800 transition-colors"
-          >
+          <a className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800">
             <FaUsers /> Personnel
           </a>
-          <a
-            href="#"
-            className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800 transition-colors"
-          >
+          <a className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800">
             <FaFileAlt /> Reports
           </a>
-          <a
-            href="#"
-            className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800 transition-colors"
-          >
+          <a className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800">
             <FaShieldAlt /> Security
           </a>
-          <a
-            href="#"
-            className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800 transition-colors"
-          >
+          <a className="flex items-center gap-3 p-2 rounded hover:bg-emerald-800">
             <FaCog /> Settings
           </a>
         </nav>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-emerald-700 shadow px-6 py-4 flex justify-between items-center text-white">
+        <header className="bg-emerald-700 px-6 py-4 flex justify-between items-center text-white">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <div className="flex items-center gap-4">
-            <span>{session.user?.name || "Admin Officer"}</span>
+            <span>{user.email}</span>
             <img
               className="w-10 h-10 rounded-full border-2 border-white"
               src="/profile-placeholder.png"
               alt="Profile"
             />
             <button
-              onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-              className="flex items-center gap-1 bg-red-600 px-3 py-1 rounded hover:bg-red-500 transition-colors"
+              onClick={handleLogout}
+              className="flex items-center gap-1 bg-red-600 px-3 py-1 rounded hover:bg-red-500"
             >
               <FaSignOutAlt /> Logout
             </button>
           </div>
         </header>
 
-        {/* Dashboard content */}
+        {/* Content */}
         <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Example cards */}
-          <div className="bg-emerald-100 text-emerald-900 shadow rounded p-6">
+          <div className="bg-emerald-100 shadow rounded p-6">
             <h2 className="text-lg font-semibold mb-2">Total Personnel</h2>
-            <p className="text-3xl font-bold">1,245</p>
-          </div>
-          <div className="bg-emerald-100 text-emerald-900 shadow rounded p-6">
-            <h2 className="text-lg font-semibold mb-2">Active Operations</h2>
-            <p className="text-3xl font-bold">12</p>
+            <p className="text-3xl font-bold">—</p>
           </div>
 
-          {/* Payslip section */}
-          <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-emerald-100 text-emerald-900 shadow rounded p-6">
+          <div className="bg-emerald-100 shadow rounded p-6">
+            <h2 className="text-lg font-semibold mb-2">Active Operations</h2>
+            <p className="text-3xl font-bold">—</p>
+          </div>
+
+          {/* Payslips */}
+          <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-emerald-100 shadow rounded p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <FaFileInvoiceDollar /> Payslips
             </h2>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-emerald-200">
-                  <th className="p-2 border border-emerald-300">Period</th>
-                  <th className="p-2 border border-emerald-300">Basic Pay</th>
-                  <th className="p-2 border border-emerald-300">Allowances</th>
-                  <th className="p-2 border border-emerald-300">Deductions</th>
-                  <th className="p-2 border border-emerald-300">Net Pay</th>
-                  <th className="p-2 border border-emerald-300">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payslips.map((p, idx) => (
-                  <tr key={idx} className="odd:bg-emerald-100 even:bg-emerald-50">
-                    <td className="p-2 border border-emerald-300">{p.period}</td>
-                    <td className="p-2 border border-emerald-300">K{p.basic.toLocaleString()}</td>
-                    <td className="p-2 border border-emerald-300">
-                      K{p.allowances.toLocaleString()}
-                    </td>
-                    <td className="p-2 border border-emerald-300">
-                      K{p.deductions.toLocaleString()}
-                    </td>
-                    <td className="p-2 border border-emerald-300">
-                      K{(p.basic + p.allowances - p.deductions).toLocaleString()}
-                    </td>
-                    <td className="p-2 border border-emerald-300">
-                      <button className="bg-emerald-900 text-white px-3 py-1 rounded hover:bg-emerald-800 transition-colors">
-                        Download
-                      </button>
-                    </td>
+
+            {payslips.length === 0 ? (
+              <p>No payslips available.</p>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-emerald-200">
+                    <th className="p-2 border">Period</th>
+                    <th className="p-2 border">Basic</th>
+                    <th className="p-2 border">Allowances</th>
+                    <th className="p-2 border">Deductions</th>
+                    <th className="p-2 border">Net Pay</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payslips.map((p) => (
+                    <tr key={p.id} className="odd:bg-emerald-50">
+                      <td className="p-2 border">{p.period}</td>
+                      <td className="p-2 border">K{p.basic.toLocaleString()}</td>
+                      <td className="p-2 border">
+                        K{p.allowances.toLocaleString()}
+                      </td>
+                      <td className="p-2 border">
+                        K{p.deductions.toLocaleString()}
+                      </td>
+                      <td className="p-2 border font-bold">
+                        K
+                        {(p.basic +
+                          p.allowances -
+                          p.deductions).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </main>
       </div>
@@ -155,9 +152,11 @@ export default function Dashboard({ session }: { session: any }) {
   );
 }
 
-// -------------------- LOGIN PROTECTION --------------------
-export async function getServerSideProps(context: any) {
-  const session = await getSession(context);
+// -------------------- SERVER-SIDE AUTH --------------------
+export const getServerSideProps: GetServerSideProps = async () => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   if (!session) {
     return {
@@ -169,6 +168,8 @@ export async function getServerSideProps(context: any) {
   }
 
   return {
-    props: { session },
+    props: {
+      user: session.user,
+    },
   };
-}
+};

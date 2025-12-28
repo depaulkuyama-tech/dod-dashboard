@@ -1,7 +1,7 @@
-// src/pages/auth/signup.tsx
 import { GetServerSideProps } from "next";
 import { getCsrfToken, getSession } from "next-auth/react";
 import { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 interface SignUpProps {
   csrfToken: string | null;
@@ -24,10 +24,48 @@ export default function SignUp({ csrfToken }: SignUpProps) {
       return;
     }
 
-    // TODO: Connect to backend API (e.g. /api/auth/signup)
     setError("");
+    setSuccess("");
+
+    // 1️⃣ Create Supabase Auth user
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          department: department,
+          role: "pending",
+        },
+      },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
+    // 2️⃣ Insert profile row for admin approval
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          id: data.user.id,
+          full_name: fullName,
+          email: email,
+          department: department,
+          approved: false,
+        });
+
+      if (profileError) {
+        console.error(profileError);
+        setError("Account created, but profile setup failed.");
+        return;
+      }
+    }
+
     setSuccess(
-      "Account request submitted. Please wait for administrator approval."
+      "Account created successfully. Please wait for administrator approval."
     );
   };
 
@@ -40,19 +78,15 @@ export default function SignUp({ csrfToken }: SignUpProps) {
         backgroundPosition: "center",
       }}
     >
-      {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/50"></div>
 
-      {/* Signup Card */}
       <div className="relative bg-white p-8 rounded shadow-lg w-full max-w-lg text-center z-10">
-        {/* Logo */}
         <img
           src="/png-mod-logo.png"
           alt="PNG Ministry of Defence Logo"
           className="mx-auto mb-4 w-40 h-40 object-contain"
         />
 
-        {/* Government Name */}
         <h3 className="text-2xl font-extrabold tracking-widest uppercase text-emerald-900">
           Papua New Guinea
         </h3>
@@ -83,83 +117,59 @@ export default function SignUp({ csrfToken }: SignUpProps) {
             <input type="hidden" name="csrfToken" value={csrfToken} />
           )}
 
-          <label className="flex flex-col text-left">
-            <span className="mb-1 font-semibold text-emerald-900">
-              Full Name
-            </span>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              placeholder="John Michael Doe"
-              className="border border-emerald-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-600"
-            />
-          </label>
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+            className="border rounded px-3 py-2"
+          />
 
-          <label className="flex flex-col text-left">
-            <span className="mb-1 font-semibold text-emerald-900">
-              Official Email
-            </span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="name@defence.gov.pg"
-              className="border border-emerald-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-600"
-            />
-          </label>
+          <input
+            type="email"
+            placeholder="Official Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="border rounded px-3 py-2"
+          />
 
-          <label className="flex flex-col text-left">
-            <span className="mb-1 font-semibold text-emerald-900">
-              Department / Unit
-            </span>
-            <input
-              type="text"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              required
-              placeholder="Infantry / Finance / Logistics"
-              className="border border-emerald-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-600"
-            />
-          </label>
+          <input
+            type="text"
+            placeholder="Department / Unit"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            required
+            className="border rounded px-3 py-2"
+          />
 
-          <label className="flex flex-col text-left">
-            <span className="mb-1 font-semibold text-emerald-900">
-              Password
-            </span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="border border-emerald-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-600"
-            />
-          </label>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="border rounded px-3 py-2"
+          />
 
-          <label className="flex flex-col text-left">
-            <span className="mb-1 font-semibold text-emerald-900">
-              Confirm Password
-            </span>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="border border-emerald-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-600"
-            />
-          </label>
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="border rounded px-3 py-2"
+          />
 
           <button
             type="submit"
-            className="bg-emerald-900 text-white py-2 rounded hover:bg-emerald-800 transition"
+            className="bg-emerald-900 text-white py-2 rounded hover:bg-emerald-800"
           >
             Submit Registration
           </button>
         </form>
 
-        {/* Links */}
         <div className="mt-6 flex justify-between text-sm">
           <a href="/auth/signin" className="text-emerald-700 hover:underline">
             Back to Login
@@ -169,18 +179,8 @@ export default function SignUp({ csrfToken }: SignUpProps) {
           </a>
         </div>
 
-        {/* Security Notice */}
         <div className="mt-6 text-xs text-gray-600">
-          Registration is restricted to authorized personnel only. All account
-          requests are reviewed and approved by system administrators.
-        </div>
-
-        {/* Copyright */}
-        <div className="mt-8 pt-4 border-t text-xs text-gray-500 text-center">
-          © {new Date().getFullYear()} Government of Papua New Guinea – Ministry of
-          Defence.
-          <br />
-          
+          Registration is restricted to authorized personnel only.
         </div>
       </div>
     </div>
